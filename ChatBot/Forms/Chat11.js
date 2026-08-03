@@ -41,6 +41,7 @@ const ChatScreenWithVoice = () => {
 
 
   const [chatvalue, setchatvalue] = useState(0);
+   const [isuserreply, setisuerreply] = useState(1);
 
   const [hasSeenNotification, setHasSeenNotification] = useState(false);  // ✅ user has seen
 
@@ -61,6 +62,36 @@ const [dateModalVisible, setDateModalVisible] = useState(false);
 const [selectedDate, setSelectedDate] = useState('All');
 
   const [messages, setMessages] = useState([]);
+
+    const [chatid, setchatid] = useState(1);
+
+
+
+
+    const handleuserreply = async () => {
+    if (!input.trim()) return;
+    const now = new Date();
+    const time = now.toTimeString().split(' ')[0];
+    const userMsg = { id: Date.now(), text: input, sender: "user", time };
+    setMessages(prev => [...prev, userMsg]);
+    setInput("");
+
+    try {
+      const res = await fetch(`${global.apiBaseUrl}/chat/save_user_reply/${chatid}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ user_reply:input})
+      });
+      if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
+      const data = await res.json();
+
+    setisuerreply(1)
+   
+    } catch (err) {
+      console.error("Send message error:", err);
+      Alert.alert("Error", "Could not send message");
+    }
+  };
 
 //seach ka code 
 
@@ -133,10 +164,11 @@ const fetchNotification = async () => {
 
 
 
-  useEffect(() => {
-    initVoiceDir();
-    if (personId) fetchChatHistory();
-  }, [personId]);
+//   useEffect(() => {
+//     initVoiceDir();
+//     if (personId) 
+//         fetchChatHistory();
+//   }, [personId]);
 
   const initVoiceDir = async () => {
     try {
@@ -193,6 +225,28 @@ setMessages(formattedMessages);
     }
   };
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
   const sendMessage = async () => {
     if (!input.trim()) return;
     const now = new Date();
@@ -211,15 +265,35 @@ setMessages(formattedMessages);
       const data = await res.json();
       const answer = data["Processed answer"] || "No response";
          const cid = data["cid"] || "No response";
-      navigation.navigate("RateScreen",{answer:answer,cid:cid})
+         setchatid(cid)
+      setisuerreply(2)
+      //navigation.navigate("RateScreen",{answer:answer,cid:cid})
       const botMsg = {
         id: Date.now() + 1,
         text: answer,
         sender: "bot",
         time
       };
+
+
+
       setMessages(prev => [...prev, botMsg]);
-      fetchChatHistory();
+
+
+        const botMsg1 = {
+        id: Date.now() + 2,
+        text: "was this response appropriate ?",
+        sender: "bot",
+        time
+      };
+
+
+
+      setMessages(prev => [...prev, botMsg1]);
+
+       
+
+      //fetchChatHistory();
     } catch (err) {
       console.error("Send message error:", err);
       Alert.alert("Error", "Could not send message");
@@ -271,7 +345,7 @@ setMessages(formattedMessages);
          const cid = data["cid"] || "No response";
 
 
-  navigation.navigate("RateScreen",{answer:answer,cid:cid})
+  //navigation.navigate("RateScreen",{answer:answer,cid:cid})
       fetchChatHistory();
     } catch (err) {
       console.error("Voice message error:", err);
@@ -706,7 +780,7 @@ onPress={async () => {
           <Text style={styles.time}>{item.time}</Text>
           {(item.sender === "bot" || item.sender === "bot-voice") && (
             <View style={styles.reactionRow}>
-              <TouchableOpacity onPress={() => handleFavourite(item.cid, 0)}>
+              {/* <TouchableOpacity onPress={() => handleFavourite(item.cid, 0)}>
                 <Ionicons
                   name="thumbs-up"
                   size={18}
@@ -720,7 +794,7 @@ onPress={async () => {
                   size={18}
                   color={dislikedMessages.includes(item.cid) ? COLORS.error : COLORS.lightText}
                 />
-              </TouchableOpacity>
+              </TouchableOpacity> */}
             </View>
           )}
         </View>
@@ -881,7 +955,7 @@ onPress={async () => {
           multiline
         />
         <TouchableOpacity
-          onPress={sendMessage}
+          onPress={isuserreply==2?handleuserreply: sendMessage}
           style={styles.icon}
           disabled={!input.trim()}
         >

@@ -1,12 +1,38 @@
 import React, { useEffect, useState } from "react";
-import { View, FlatList, StyleSheet, Alert, Modal } from "react-native";
-import { Text, Card, Button, TextInput, Chip, Searchbar } from "react-native-paper";
+import {
+  View,
+  FlatList,
+  StyleSheet,
+  Alert,
+  Modal,
+  TouchableOpacity,
+} from "react-native";
+import {
+  Text,
+  Card,
+  Button,
+  TextInput,
+  Chip,
+  Searchbar,
+} from "react-native-paper";
+import Ionicons from "react-native-vector-icons/Ionicons";
+
+const COLORS = {
+  primary: "#075E54",
+  secondary: "#128C7E",
+  accent: "#25D366",
+  background: "#F8F9FA",
+  surface: "#FFFFFF",
+  text: "#212529",
+  lightText: "#6C757D",
+  border: "#DEE2E6",
+  error: "#DC3545",
+};
 
 const KnowledgeBaseScreen = () => {
   const [data, setData] = useState([]);
   const [filteredData, setFilteredData] = useState([]);
   const [searchQuery, setSearchQuery] = useState("");
-
   const [modalVisible, setModalVisible] = useState(false);
   const [editItem, setEditItem] = useState(null);
   const [keyInput, setKeyInput] = useState("");
@@ -18,7 +44,10 @@ const KnowledgeBaseScreen = () => {
 
   const fetchKnowledgeBase = async () => {
     try {
-      const response = await fetch("http://10.0.2.2:5000/knowledgeBase");
+      // const response = await fetch("http://10.0.2.2:5001/knowledgeBase");
+
+      const response = await fetch(`${global.apiBaseUrl}/knowledgeBase`);
+
       const result = await response.json();
       setData(result);
       setFilteredData(result);
@@ -30,7 +59,10 @@ const KnowledgeBaseScreen = () => {
 
   const handleDelete = async (id) => {
     try {
-      await fetch(`http://10.0.2.2:5000/knowledgeBase/${id}`, {
+      // await fetch(`http://10.0.2.2:5001/knowledgeBase/${id}`, {
+
+      await fetch(`${global.apiBaseUrl}/knowledgeBase/${id}`, {
+
         method: "DELETE",
       });
       fetchKnowledgeBase();
@@ -47,19 +79,25 @@ const KnowledgeBaseScreen = () => {
   };
 
   const handleSubmit = async () => {
-    const payload = { key: keyInput, value: valueInput };
+    if (!keyInput.trim() || !valueInput.trim()) {
+      Alert.alert("Validation", "Key and Value are required.");
+      return;
+    }
+
+    const url = editItem
+      // ? `http://10.0.2.2:5001/knowledgeBase/${editItem.id}`
+      // : "http://10.0.2.2:5001/knowledgeBase";
+
+      ? `${global.apiBaseUrl}/knowledgeBase/${editItem.id}`
+: `${global.apiBaseUrl}/knowledgeBase`;
+
+    const method = editItem ? "PUT" : "POST";
 
     try {
-      const url = editItem
-        ? `http://10.0.2.2:5000/knowledgeBase/${editItem.id}`
-        : "http://10.0.2.2:5000/knowledgeBase";
-
-      const method = editItem ? "PUT" : "POST";
-
       await fetch(url, {
         method,
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
+        body: JSON.stringify({ key: keyInput, value: valueInput }),
       });
 
       setModalVisible(false);
@@ -83,10 +121,10 @@ const KnowledgeBaseScreen = () => {
   };
 
   const renderItem = ({ item }) => (
-    <Card style={styles.card}>
+    <Card style={styles.card} elevation={3}>
       <Card.Content>
         <Text style={styles.keyText}>{item.key}</Text>
-        <Text>{item.value}</Text>
+        <Text style={styles.valueText}>{item.value}</Text>
         <View style={styles.actions}>
           <Chip icon="pencil" onPress={() => handleEdit(item)} style={styles.chip}>
             Edit
@@ -94,8 +132,8 @@ const KnowledgeBaseScreen = () => {
           <Chip
             icon="delete"
             onPress={() => handleDelete(item.id)}
-            style={styles.chip}
-            textStyle={{ color: "red" }}
+            style={[styles.chip, { backgroundColor: "#F8D7DA" }]}
+            textStyle={{ color: COLORS.error }}
           >
             Delete
           </Chip>
@@ -117,12 +155,14 @@ const KnowledgeBaseScreen = () => {
 
       <FlatList
         data={filteredData}
-        keyExtractor={(item) => item.id}
+        keyExtractor={(item) => item.id.toString()}
         renderItem={renderItem}
+        contentContainerStyle={{ paddingBottom: 80 }}
       />
 
       <Button
         mode="contained"
+        icon="plus"
         style={styles.addButton}
         onPress={() => {
           setEditItem(null);
@@ -130,15 +170,24 @@ const KnowledgeBaseScreen = () => {
           setValueInput("");
           setModalVisible(true);
         }}
+        labelStyle={{ fontSize: 16, fontWeight: "bold", color: "#fff" }}
       >
         Add New Knowledge
       </Button>
 
-      {/* Modal for Add/Edit */}
+      {/* Modal */}
       <Modal visible={modalVisible} animationType="slide" transparent>
         <View style={styles.modalContainer}>
           <Card style={styles.modalCard}>
-            <Card.Title title={editItem ? "Edit Knowledge" : "Add Knowledge"} />
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>
+                {editItem ? "Edit Knowledge" : "Add Knowledge"}
+              </Text>
+              <TouchableOpacity onPress={() => setModalVisible(false)}>
+                <Ionicons name="close" size={24} color="#333" />
+              </TouchableOpacity>
+            </View>
+
             <Card.Content>
               <TextInput
                 label="Key"
@@ -146,6 +195,9 @@ const KnowledgeBaseScreen = () => {
                 value={keyInput}
                 onChangeText={setKeyInput}
                 style={styles.input}
+                editable={!editItem}
+                outlineColor={COLORS.border}
+                activeOutlineColor={COLORS.primary}
               />
               <TextInput
                 label="Value"
@@ -153,8 +205,16 @@ const KnowledgeBaseScreen = () => {
                 value={valueInput}
                 onChangeText={setValueInput}
                 style={styles.input}
+                multiline
+                outlineColor={COLORS.border}
+                activeOutlineColor={COLORS.primary}
               />
-              <Button mode="contained" onPress={handleSubmit}>
+              <Button
+                mode="contained"
+                onPress={handleSubmit}
+                style={styles.submitBtn}
+                labelStyle={{ fontSize: 16, fontWeight: "bold", color: "#fff" }}
+              >
                 Submit
               </Button>
             </Card.Content>
@@ -165,29 +225,40 @@ const KnowledgeBaseScreen = () => {
   );
 };
 
+export default KnowledgeBaseScreen;
+
 const styles = StyleSheet.create({
   container: {
     flex: 1,
     padding: 16,
-    backgroundColor: "#e1f5fe",
+    backgroundColor: COLORS.background,
   },
   title: {
-    fontSize: 24,
+    fontSize: 22,
     fontWeight: "bold",
     marginBottom: 10,
     textAlign: "center",
+    color: COLORS.primary,
   },
   search: {
     marginBottom: 10,
-    borderRadius: 10,
+    borderRadius: 12,
   },
   card: {
-    marginVertical: 8,
+    marginVertical: 6,
+    backgroundColor: COLORS.surface,
+    borderRadius: 12,
     padding: 10,
   },
   keyText: {
     fontSize: 18,
     fontWeight: "bold",
+    color: COLORS.text,
+  },
+  valueText: {
+    fontSize: 15,
+    color: COLORS.lightText,
+    marginTop: 4,
   },
   actions: {
     flexDirection: "row",
@@ -196,23 +267,44 @@ const styles = StyleSheet.create({
   },
   chip: {
     marginLeft: 10,
+    backgroundColor: COLORS.background,
   },
   addButton: {
     marginTop: 20,
+    alignSelf: "center",
+    width: "60%",
+    backgroundColor: COLORS.secondary,
+    borderRadius: 12,
   },
   modalContainer: {
     flex: 1,
     justifyContent: "center",
     padding: 20,
-    backgroundColor: "#000000aa",
+    backgroundColor: "#00000088",
   },
   modalCard: {
-    backgroundColor: "white",
-    padding: 15,
+    borderRadius: 12,
+    padding: 16,
+    backgroundColor: COLORS.surface,
+  },
+  modalHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 12,
+  },
+  modalTitle: {
+    fontSize: 20,
+    fontWeight: "bold",
+    color: COLORS.primary,
   },
   input: {
-    marginBottom: 10,
+    marginBottom: 16,
+    backgroundColor: COLORS.surface,
+  },
+  submitBtn: {
+    backgroundColor: COLORS.secondary,
+    borderRadius: 10,
+    marginTop: 8,
   },
 });
-
-export default KnowledgeBaseScreen;
